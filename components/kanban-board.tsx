@@ -4,12 +4,17 @@ import { useState } from "react"
 import {
   DndContext,
   type DragEndEvent,
+  type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core"
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable"
 import { KanbanColumn } from "./kanban-column"
 import { FeatureCard } from "./feature-card"
 import type { Feature } from "@/app/page"
@@ -72,6 +77,29 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
     setActiveFeature(feature || null)
   }
 
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event
+    if (!over) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    // Find the active feature
+    const activeFeature = features.find((f) => f.id === activeId)
+    if (!activeFeature) return
+
+    // Determine if we're dragging over a column or another feature
+    const isOverColumn = phases.includes(overId)
+    const targetPhase = isOverColumn ? overId : features.find((f) => f.id === overId)?.phase
+
+    if (!targetPhase || targetPhase === activeFeature.phase) {
+      return
+    }
+
+    // Optimistically update the feature's phase
+    onFeatureMove(activeId, targetPhase, 999) // Use a high index to move to the end
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveFeature(null)
@@ -131,18 +159,25 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
 
   return (
     <div className="w-full">
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
         <div className="flex gap-6 overflow-x-auto pb-4 min-h-[500px]">
-          {phases.map((phase, index) => (
-            <KanbanColumn
-              key={phase}
-              phase={phase}
-              features={featuresByPhase[phase]}
-              onEditFeature={onEditFeature}
-              colorClass={getPhaseColor(phase, index)}
-              headerColorClass={getPhaseHeaderColor(phase, index)}
-            />
-          ))}
+          <SortableContext items={phases} strategy={horizontalListSortingStrategy}>
+            {phases.map((phase, index) => (
+              <KanbanColumn
+                key={phase}
+                phase={phase}
+                features={featuresByPhase[phase]}
+                onEditFeature={onEditFeature}
+                colorClass={getPhaseColor(phase, index)}
+                headerColorClass={getPhaseHeaderColor(phase, index)}
+              />
+            ))}
+          </SortableContext>
         </div>
 
         <DragOverlay>

@@ -39,10 +39,11 @@ export function FeatureCard({ feature, onEdit, isDragging = false }: FeatureCard
     <Card
       ref={setNodeRef}
       style={style}
-      className={`bg-card hover:shadow-md transition-shadow cursor-pointer group ${
+      className={`bg-card hover:shadow-md transition-shadow cursor-grab group ${
         isCurrentlyDragging ? "opacity-50 shadow-lg" : ""
       }`}
       {...attributes}
+      {...listeners}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
@@ -58,14 +59,6 @@ export function FeatureCard({ feature, onEdit, isDragging = false }: FeatureCard
               className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
             >
               <Edit className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 cursor-grab active:cursor-grabbing"
-              {...listeners}
-            >
-              <GripVertical className="h-3 w-3" />
             </Button>
           </div>
         </div>

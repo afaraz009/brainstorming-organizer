@@ -91,27 +91,56 @@ export default function BrainstormingOrganizer() {
     }
   }
 
-  const handleFeatureMove = (featureId: string, newPhase: string, newIndex: number) => {
-    if (!projectData) return
+  const handleFeatureMove = (featureId: string, newPhase: string, newIndexInPhase: number) => {
+    setProjectData((currentData) => {
+      if (!currentData) return null;
 
-    const updatedFeatures = [...projectData.features]
-    const featureIndex = updatedFeatures.findIndex((f) => f.id === featureId)
-    const feature = updatedFeatures[featureIndex]
+      const features = currentData.features;
+      const activeFeature = features.find((f) => f.id === featureId);
+      if (!activeFeature) return currentData;
 
-    updatedFeatures.splice(featureIndex, 1)
+      // Create a new array without the moved feature
+      const remainingFeatures = features.filter(f => f.id !== featureId);
+      
+      // Update the feature's phase
+      const updatedFeature = { ...activeFeature, phase: newPhase };
 
-    const updatedFeature = { ...feature, phase: newPhase }
+      // Find the list of items in the target phase (from the remaining items)
+      const targetPhaseItems = remainingFeatures.filter(f => f.phase === newPhase);
 
-    const phaseFeatures = updatedFeatures.filter((f) => f.phase === newPhase)
-    const otherFeatures = updatedFeatures.filter((f) => f.phase !== newPhase)
+      // Find the item that will be *after* our moved feature
+      const targetItem = targetPhaseItems[newIndexInPhase];
 
-    phaseFeatures.splice(newIndex, 0, updatedFeature)
+      let finalFeatures = [];
 
-    setProjectData({
-      ...projectData,
-      features: [...otherFeatures, ...phaseFeatures],
-    })
-  }
+      if (!targetItem) {
+        // If there's no target item, it means we're inserting at the end of the phase.
+        // Find the last item of the target phase in the remainingFeatures array to preserve order.
+        const lastItemInPhase = remainingFeatures.findLast(f => f.phase === newPhase);
+        if (lastItemInPhase) {
+          const insertionPoint = remainingFeatures.findIndex(f => f.id === lastItemInPhase.id) + 1;
+          finalFeatures = [
+            ...remainingFeatures.slice(0, insertionPoint),
+            updatedFeature,
+            ...remainingFeatures.slice(insertionPoint)
+          ];
+        } else {
+          // The phase is empty, so we can just append the feature.
+          finalFeatures = [...remainingFeatures, updatedFeature];
+        }
+      } else {
+        // We're inserting before the targetItem.
+        const insertionPoint = remainingFeatures.findIndex(f => f.id === targetItem.id);
+        finalFeatures = [
+          ...remainingFeatures.slice(0, insertionPoint),
+          updatedFeature,
+          ...remainingFeatures.slice(insertionPoint)
+        ];
+      }
+
+      return { ...currentData, features: finalFeatures };
+    });
+  };
 
   const allTags = projectData ? Array.from(new Set(projectData.features.flatMap((f) => f.tags))) : []
 
