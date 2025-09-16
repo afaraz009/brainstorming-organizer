@@ -127,24 +127,6 @@ export function FileInput({ onFileLoad }: FileInputProps) {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-
-        <div className="mt-6 p-4 bg-muted rounded-lg">
-          <h4 className="font-medium mb-2">Expected JSON Format:</h4>
-          <pre className="text-sm text-muted-foreground overflow-x-auto">
-            {`{
-  "projectVision": "A brief description of the project.",
-  "features": [
-    {
-      "id": "UUID",
-      "title": "Feature Title",
-      "description": "Feature description",
-      "tags": ["tag1", "tag2"],
-      "phase": "R&D"
-    }
-  ]
-}`}
-          </pre>
-        </div>
       </CardContent>
     </Card>
   )
