@@ -80,7 +80,7 @@ export function KanbanColumn({ phase, features, onEditFeature, onViewFeature, on
             >
               <GripVertical className="h-4 w-4" />
             </div>
-            <h3 className="font-semibold text-lg truncate min-w-0">{phase.replace("Phase ", "").replace(/^[0-9]+:?/, "")}</h3>
+            <h3 className="font-semibold text-lg break-words min-w-0">{phase.replace("Phase ", "").replace(/^[0-9]+:?/, "")}</h3>
           </div>
         </div>
       </div>

@@ -126,7 +126,7 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, allFeature
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-border cursor-col-resize hover:bg-primary/50" onMouseDown={handleMouseDown} />
       <div className="p-6">
           <div className="flex items-start justify-between mb-4">
-            <h2 className="text-lg font-semibold pr-8 truncate">{feature.title}</h2>
+            <h2 className="text-lg font-semibold pr-8 break-words">{feature.title}</h2>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
