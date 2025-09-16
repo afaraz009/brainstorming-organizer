@@ -287,6 +287,7 @@ export default function BrainstormingOrganizer() {
               setViewingFeature(null)
             }
           }}
+          onSave={handleEditFeature}
           allFeatures={filteredFeatures}
           onNavigate={(feature) => {
             setViewingFeature(feature)
