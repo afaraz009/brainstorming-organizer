@@ -22,11 +22,16 @@ import type { Feature } from "@/app/page"
 interface KanbanBoardProps {
   features: Feature[]
   onFeatureMove: (featureId: string, newPhase: string, newIndex: number) => void
+  onColumnReorder: (phases: string[]) => void
   onEditFeature: (feature: Feature) => void
+  onViewFeature: (feature: Feature) => void
+  onAddFeature: (title: string, phase: string) => void
+  columnOrder?: string[]
 }
 
-export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBoardProps) {
+export function KanbanBoard({ features, onFeatureMove, onColumnReorder, onEditFeature, onViewFeature, onAddFeature, columnOrder }: KanbanBoardProps) {
   const [activeFeature, setActiveFeature] = useState<Feature | null>(null)
+  const [activeColumn, setActiveColumn] = useState<string | null>(null)
 
   // Configure sensors for drag and drop
   const sensors = useSensors(
@@ -38,7 +43,8 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
   )
 
   // Get unique phases and group features by phase
-  const phases = Array.from(new Set(features.map((f) => f.phase)))
+  const detectedPhases = Array.from(new Set(features.map((f) => f.phase)))
+  const phases = columnOrder && columnOrder.length > 0 ? columnOrder : detectedPhases
   const featuresByPhase = phases.reduce(
     (acc, phase) => {
       acc[phase] = features.filter((f) => f.phase === phase)
@@ -47,15 +53,15 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
     {} as Record<string, Feature[]>,
   )
 
-  // Color mapping for different phases
+  // Color mapping for different phases - muted for better card contrast
   const getPhaseColor = (phase: string, index: number) => {
     const colors = [
-      "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800",
-      "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800",
-      "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800",
-      "bg-purple-50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800",
-      "bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-800",
-      "bg-cyan-50 border-cyan-200 dark:bg-cyan-950/20 dark:border-cyan-800",
+      "bg-blue-50/40 border-blue-200/50 dark:bg-blue-950/5 dark:border-blue-900/30",
+      "bg-amber-50/40 border-amber-200/50 dark:bg-amber-950/5 dark:border-amber-900/30",
+      "bg-green-50/40 border-green-200/50 dark:bg-green-950/5 dark:border-green-900/30",
+      "bg-purple-50/40 border-purple-200/50 dark:bg-purple-950/5 dark:border-purple-900/30",
+      "bg-rose-50/40 border-rose-200/50 dark:bg-rose-950/5 dark:border-rose-900/30",
+      "bg-cyan-50/40 border-cyan-200/50 dark:bg-cyan-950/5 dark:border-cyan-900/30",
     ]
     return colors[index % colors.length]
   }
@@ -73,8 +79,15 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    const feature = features.find((f) => f.id === event.active.id)
-    setActiveFeature(feature || null)
+    const activeId = event.active.id as string
+
+    // Check if we're dragging a feature or a column
+    const feature = features.find((f) => f.id === activeId)
+    if (feature) {
+      setActiveFeature(feature)
+    } else if (phases.includes(activeId)) {
+      setActiveColumn(activeId)
+    }
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -83,6 +96,9 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
 
     const activeId = active.id as string
     const overId = over.id as string
+
+    // If we're dragging a column, don't do anything here
+    if (phases.includes(activeId)) return
 
     // Find the active feature
     const activeFeature = features.find((f) => f.id === activeId)
@@ -103,13 +119,29 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveFeature(null)
+    setActiveColumn(null)
 
     if (!over) return
 
     const activeId = active.id as string
     const overId = over.id as string
 
-    // Find the active feature
+    // Handle column reordering
+    if (phases.includes(activeId)) {
+      if (phases.includes(overId) && activeId !== overId) {
+        const oldIndex = phases.indexOf(activeId)
+        const newIndex = phases.indexOf(overId)
+
+        const newPhases = [...phases]
+        newPhases.splice(oldIndex, 1)
+        newPhases.splice(newIndex, 0, activeId)
+
+        onColumnReorder(newPhases)
+      }
+      return
+    }
+
+    // Handle feature movement
     const activeFeature = features.find((f) => f.id === activeId)
     if (!activeFeature) return
 
@@ -165,7 +197,7 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-6 overflow-x-auto pb-4 min-h-[500px]">
+        <div className="flex gap-6 overflow-x-auto pb-4 min-h-[500px] justify-center">
           <SortableContext items={phases} strategy={horizontalListSortingStrategy}>
             {phases.map((phase, index) => (
               <KanbanColumn
@@ -173,6 +205,8 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
                 phase={phase}
                 features={featuresByPhase[phase]}
                 onEditFeature={onEditFeature}
+                onViewFeature={onViewFeature}
+                onAddFeature={onAddFeature}
                 colorClass={getPhaseColor(phase, index)}
                 headerColorClass={getPhaseHeaderColor(phase, index)}
               />
@@ -183,7 +217,19 @@ export function KanbanBoard({ features, onFeatureMove, onEditFeature }: KanbanBo
         <DragOverlay>
           {activeFeature ? (
             <div className="rotate-3 opacity-90">
-              <FeatureCard feature={activeFeature} index={0} onEdit={() => {}} onMove={() => {}} isDragging />
+              <FeatureCard feature={activeFeature} index={0} onEdit={() => {}} onView={() => {}} onMove={() => {}} isDragging />
+            </div>
+          ) : activeColumn ? (
+            <div className="rotate-3 opacity-90">
+              <KanbanColumn
+                phase={activeColumn}
+                features={featuresByPhase[activeColumn] || []}
+                onEditFeature={() => {}}
+                onViewFeature={() => {}}
+                onAddFeature={() => {}}
+                colorClass={getPhaseColor(activeColumn, phases.indexOf(activeColumn))}
+                headerColorClass={getPhaseHeaderColor(activeColumn, phases.indexOf(activeColumn))}
+              />
             </div>
           ) : null}
         </DragOverlay>

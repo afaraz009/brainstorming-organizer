@@ -5,15 +5,19 @@ import { FileInput } from "@/components/file-input"
 import { KanbanBoard } from "@/components/kanban-board"
 import { Filter } from "@/components/filter"
 import { FeatureForm } from "@/components/feature-form"
+import { FeatureDetailView } from "@/components/feature-detail-view"
 import { Button } from "@/components/ui/button"
 import { Plus, Download } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export interface Feature {
   id: string
   title: string
-  description: string
-  tags: string[]
+  description?: string
+  "User Problem"?: string
+  KeyComponents?: string[]
+  tags?: string[]
   phase: string
 }
 
@@ -27,10 +31,16 @@ export default function BrainstormingOrganizer() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingFeature, setEditingFeature] = useState<Feature | null>(null)
+  const [viewingFeature, setViewingFeature] = useState<Feature | null>(null)
+  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false)
+  const [columnOrder, setColumnOrder] = useState<string[]>([])
   const { toast } = useToast()
 
   const handleFileLoad = (data: ProjectData) => {
     setProjectData(data)
+    // Initialize column order based on the phases in the data
+    const phases = Array.from(new Set(data.features.map((f) => f.phase)))
+    setColumnOrder(phases)
   }
 
   const handleAddFeature = (feature: Omit<Feature, "id">) => {
@@ -46,14 +56,45 @@ export default function BrainstormingOrganizer() {
       features: [...projectData.features, newFeature],
     })
     setIsFormOpen(false)
+
+    // Add the new phase to column order if it doesn't exist
+    if (!columnOrder.includes(newFeature.phase)) {
+      setColumnOrder([...columnOrder, newFeature.phase])
+    }
   }
 
-  const handleEditFeature = (updatedFeature: Feature) => {
+  const handleQuickAddFeature = (title: string, phase: string) => {
     if (!projectData) return
+
+    const newFeature: Feature = {
+      id: crypto.randomUUID(),
+      title,
+      description: "",
+      "User Problem": "",
+      KeyComponents: [],
+      tags: [],
+      phase,
+    }
 
     setProjectData({
       ...projectData,
-      features: projectData.features.map((f) => (f.id === updatedFeature.id ? updatedFeature : f)),
+      features: [...projectData.features, newFeature],
+    })
+
+    // Add the new phase to column order if it doesn't exist
+    if (!columnOrder.includes(newFeature.phase)) {
+      setColumnOrder([...columnOrder, newFeature.phase])
+    }
+  }
+
+  const handleEditFeature = (updatedFeature: Feature | Omit<Feature, "id">) => {
+    if (!projectData) return
+
+    // This function should only be called with complete Feature objects (with id)
+    const featureWithId = updatedFeature as Feature
+    setProjectData({
+      ...projectData,
+      features: projectData.features.map((f) => (f.id === featureWithId.id ? featureWithId : f)),
     })
     setEditingFeature(null)
     setIsFormOpen(false)
@@ -101,7 +142,7 @@ export default function BrainstormingOrganizer() {
 
       // Create a new array without the moved feature
       const remainingFeatures = features.filter(f => f.id !== featureId);
-      
+
       // Update the feature's phase
       const updatedFeature = { ...activeFeature, phase: newPhase };
 
@@ -140,13 +181,22 @@ export default function BrainstormingOrganizer() {
 
       return { ...currentData, features: finalFeatures };
     });
+
+    // Add the new phase to column order if it doesn't exist
+    if (!columnOrder.includes(newPhase)) {
+      setColumnOrder([...columnOrder, newPhase])
+    }
   };
 
-  const allTags = projectData ? Array.from(new Set(projectData.features.flatMap((f) => f.tags))) : []
+  const handleColumnReorder = (newPhaseOrder: string[]) => {
+    setColumnOrder(newPhaseOrder)
+  }
+
+  const allTags = projectData ? Array.from(new Set(projectData.features.flatMap((f) => f.tags || []))) : []
 
   const filteredFeatures =
     projectData?.features.filter(
-      (feature) => selectedTags.length === 0 || selectedTags.every((tag) => feature.tags.includes(tag)),
+      (feature) => selectedTags.length === 0 || selectedTags.every((tag) => (feature.tags || []).includes(tag)),
     ) || []
 
   if (!projectData) {
@@ -167,21 +217,12 @@ export default function BrainstormingOrganizer() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="p-6">
+      <div className={`max-w-7xl mx-auto p-6 transition-all duration-300 ${isDetailViewOpen ? 'mr-[480px]' : ''}`}>
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-foreground">Brainstorming Organizer</h1>
             <div className="flex gap-2">
-              <Button
-                onClick={() => {
-                  setEditingFeature(null)
-                  setIsFormOpen(true)
-                }}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Feature
-              </Button>
+              <ThemeToggle />
               <Button onClick={handleExport} variant="outline" className="flex items-center gap-2 bg-transparent">
                 <Download className="w-4 h-4" />
                 Export JSON
@@ -200,16 +241,24 @@ export default function BrainstormingOrganizer() {
         <KanbanBoard
           features={filteredFeatures}
           onFeatureMove={handleFeatureMove}
+          onColumnReorder={handleColumnReorder}
           onEditFeature={(feature) => {
             setEditingFeature(feature)
             setIsFormOpen(true)
           }}
+          onViewFeature={(feature) => {
+            setViewingFeature(feature)
+            setIsDetailViewOpen(true)
+          }}
+          onAddFeature={handleQuickAddFeature}
+          columnOrder={columnOrder}
         />
 
         {isFormOpen && (
           <FeatureForm
             feature={editingFeature}
             existingPhases={Array.from(new Set(projectData.features.map((f) => f.phase)))}
+            allTags={allTags}
             onSave={editingFeature ? handleEditFeature : handleAddFeature}
             onCancel={() => {
               setIsFormOpen(false)
@@ -217,6 +266,27 @@ export default function BrainstormingOrganizer() {
             }}
           />
         )}
+
+        <FeatureDetailView
+          feature={viewingFeature}
+          isOpen={isDetailViewOpen}
+          onClose={() => {
+            setIsDetailViewOpen(false)
+            setViewingFeature(null)
+          }}
+          onEdit={() => {
+            if (viewingFeature) {
+              setEditingFeature(viewingFeature)
+              setIsFormOpen(true)
+              setIsDetailViewOpen(false)
+              setViewingFeature(null)
+            }
+          }}
+          allFeatures={filteredFeatures}
+          onNavigate={(feature) => {
+            setViewingFeature(feature)
+          }}
+        />
       </div>
     </div>
   )
