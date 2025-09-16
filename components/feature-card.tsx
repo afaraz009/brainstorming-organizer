@@ -114,7 +114,7 @@ export function FeatureCard({ feature, onEdit, onView, isDragging = false }: Fea
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <CardTitle className="text-lg font-semibold leading-tight text-balance flex-1">
+          <CardTitle className="text-lg font-semibold leading-tight truncate flex-1">
             {feature.title}
           </CardTitle>
           <div className="flex items-center gap-1 ml-2">

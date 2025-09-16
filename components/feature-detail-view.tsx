@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Edit, X, ChevronLeft, ChevronRight, Pin, PinOff } from "lucide-react"
-import { useEffect } from "react"
+import { useEffect, useState, useRef } from "react"
 import type { Feature } from "@/app/page"
 
 // Tag color mapping - same as in feature-card.tsx
@@ -47,28 +47,51 @@ interface FeatureDetailViewProps {
 }
 
 export function FeatureDetailView({ feature, isOpen, onClose, onEdit, allFeatures = [], onNavigate }: FeatureDetailViewProps) {
-  if (!feature) return null
+  const [width, setWidth] = useState(480)
+  const [isResizing, setIsResizing] = useState(false)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   // Navigation logic
-  const currentIndex = allFeatures.findIndex(f => f.id === feature.id)
-  const canGoBack = currentIndex > 0
-  const canGoForward = currentIndex < allFeatures.length - 1
+  const currentIndex = feature ? allFeatures.findIndex(f => f.id === feature.id) : -1
+  const canGoBack = feature ? currentIndex > 0 : false
+  const canGoForward = feature ? currentIndex < allFeatures.length - 1 : false
 
   const handlePrevious = () => {
-    if (canGoBack && onNavigate) {
+    if (feature && canGoBack && onNavigate) {
       onNavigate(allFeatures[currentIndex - 1])
     }
   }
 
   const handleNext = () => {
-    if (canGoForward && onNavigate) {
+    if (feature && canGoForward && onNavigate) {
       onNavigate(allFeatures[currentIndex + 1])
     }
   }
 
+  // Resize functionality
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true)
+    const startX = e.clientX
+    const startWidth = width
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = startWidth - (e.clientX - startX)
+      setWidth(Math.max(300, Math.min(800, newWidth)))
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }
+
   // Keyboard navigation
   useEffect(() => {
-    if (!isOpen) return
+    if (!feature || !isOpen) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' && canGoBack) {
@@ -86,15 +109,24 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, allFeature
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, canGoBack, canGoForward, handlePrevious, handleNext, onEdit, onClose])
+  }, [isOpen, canGoBack, canGoForward, handlePrevious, handleNext, onEdit, onClose, feature])
+
+  if (!feature) return null
+
+  if (!isOpen) return null
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed top-0 right-0 h-full w-[480px] bg-background border-l border-border shadow-xl z-40 overflow-y-auto">
-        <div className="p-6">
+    <div
+      ref={modalRef}
+      className={`fixed top-0 right-0 h-full bg-background border-l border-border shadow-xl z-40 overflow-y-auto ${isResizing ? 'select-none' : ''}`}
+      style={{ width: `${width}px` }}
+    >
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-border cursor-col-resize hover:bg-primary/50" onMouseDown={handleMouseDown} />
+      <div className="p-6">
           <div className="flex items-start justify-between mb-4">
-            <h2 className="text-xl font-semibold pr-8">{feature.title}</h2>
+            <h2 className="text-lg font-semibold pr-8 truncate">{feature.title}</h2>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -144,7 +176,7 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, allFeature
               {/* Phase Badge */}
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-sm">
-                  {feature.phase}
+                  {feature.phase.replace("Phase ", "")}
                 </Badge>
               </div>
             </div>
@@ -174,6 +206,21 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, allFeature
               <div className="text-sm leading-relaxed bg-muted/50 p-3 rounded-md">
                 {feature["User Problem"]}
               </div>
+            </div>
+          )}
+
+          {/* User Flow */}
+          {feature["User Flow"] && feature["User Flow"].length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">User Flow</h3>
+              <ol className="text-sm leading-relaxed space-y-1">
+                {feature["User Flow"].map((flow, index) => (
+                  <li key={index} className="flex items-start">
+                    <span className="mr-2">{index + 1}.</span>
+                    <span>{flow}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
 

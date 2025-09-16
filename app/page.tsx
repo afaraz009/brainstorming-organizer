@@ -16,6 +16,7 @@ export interface Feature {
   title: string
   description?: string
   "User Problem"?: string
+  "User Flow"?: string[]
   KeyComponents?: string[]
   tags?: string[]
   phase: string
@@ -37,9 +38,13 @@ export default function BrainstormingOrganizer() {
   const { toast } = useToast()
 
   const handleFileLoad = (data: ProjectData) => {
-    setProjectData(data)
+    const featuresWithIds = data.features.map((f, index) => ({
+      ...f,
+      id: f.id || `feature-${index}`
+    }))
+    setProjectData({ ...data, features: featuresWithIds })
     // Initialize column order based on the phases in the data
-    const phases = Array.from(new Set(data.features.map((f) => f.phase)))
+    const phases = Array.from(new Set(featuresWithIds.map((f) => f.phase)))
     setColumnOrder(phases)
   }
 

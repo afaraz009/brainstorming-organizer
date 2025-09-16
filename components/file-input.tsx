@@ -31,10 +31,10 @@ export function FileInput({ onFileLoad }: FileInputProps) {
     }
 
     for (const feature of data.features) {
-      if (!feature.id || !feature.title || !feature.description || !feature.phase) {
+      if (!feature.title || !feature.phase) {
         throw new Error("Invalid feature structure - missing required fields")
       }
-      if (!Array.isArray(feature.tags)) {
+      if (feature.tags && !Array.isArray(feature.tags)) {
         throw new Error("Invalid feature structure - tags must be an array")
       }
     }

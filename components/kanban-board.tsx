@@ -197,7 +197,8 @@ export function KanbanBoard({ features, onFeatureMove, onColumnReorder, onEditFe
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-6 overflow-x-auto pb-4 min-h-[500px] justify-center">
+        {/* Change from flex to grid for responsiveness */}
+        <div className="flex gap-6 overflow-x-auto justify-start">
           <SortableContext items={phases} strategy={horizontalListSortingStrategy}>
             {phases.map((phase, index) => (
               <KanbanColumn

@@ -67,24 +67,21 @@ export function KanbanColumn({ phase, features, onEditFeature, onViewFeature, on
     <div
       ref={setSortableNodeRef}
       style={style}
-      className={`flex-shrink-0 w-80 ${colorClass} rounded-lg border-2 p-4 ${isOver ? "ring-2 ring-primary" : ""} ${isDragging ? "opacity-50" : ""}`}
+      className={`flex-shrink-0 w-64 sm:w-72 md:w-80 xl:flex-1 xl:max-w-96 xl:min-w-72 ${colorClass} rounded-lg border-2 p-4 ${isOver ? "ring-2 ring-primary" : ""} ${isDragging ? "opacity-50" : ""}`}
     >
       {/* Column Header */}
-      <div className={`${headerColorClass} rounded-lg px-4 py-3 mb-4`}>
+      <div className={`${headerColorClass} rounded-lg px-4 py-3 mb-4 overflow-hidden`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div
               {...attributes}
               {...listeners}
-              className="cursor-grab hover:cursor-grabbing p-1 hover:bg-white/10 dark:hover:bg-black/10 rounded"
+              className="cursor-grab hover:cursor-grabbing p-1 hover:bg-white/10 dark:hover:bg-black/10 rounded flex-shrink-0"
             >
               <GripVertical className="h-4 w-4" />
             </div>
-            <h3 className="font-semibold text-lg">{phase}</h3>
+            <h3 className="font-semibold text-lg truncate min-w-0">{phase.replace("Phase ", "").replace(/^[0-9]+:?/, "")}</h3>
           </div>
-          <span className="text-sm font-medium bg-white/20 dark:bg-black/20 px-2 py-1 rounded-full">
-            {features.length}
-          </span>
         </div>
       </div>
 
