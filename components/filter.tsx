@@ -3,11 +3,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { FilterIcon, X, Search } from "lucide-react"
+import { FilterIcon, X } from "lucide-react"
 
 interface FilterProps {
   allTags: string[]
@@ -37,15 +37,26 @@ export function Filter({ allTags, selectedTags, onTagsChange }: FilterProps) {
     onTagsChange([...allTags])
   }
 
+
   if (allTags.length === 0) {
-    return null
+    return (
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="outline" className="flex items-center gap-2 bg-transparent" disabled>
+          <FilterIcon className="w-4 h-4" />
+          No tags available
+        </Button>
+      </div>
+    )
   }
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 bg-transparent"
+          >
             <FilterIcon className="w-4 h-4" />
             Filter by Tags
             {selectedTags.length > 0 && (
@@ -54,31 +65,28 @@ export function Filter({ allTags, selectedTags, onTagsChange }: FilterProps) {
               </Badge>
             )}
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80" align="start">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium">Filter by Tags</h4>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={handleSelectAll} className="h-auto py-1 px-2 text-xs">
-                  Select All
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleClearAll} className="h-auto py-1 px-2 text-xs">
-                  Clear All
-                </Button>
-              </div>
-            </div>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Filter by Tags</DialogTitle>
+          </DialogHeader>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleSelectAll} className="h-auto py-1 px-2 text-xs">
+            Select All
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleClearAll} className="h-auto py-1 px-2 text-xs">
+            Clear All
+          </Button>
+        </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tags..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          {/* Search */}
+          <div className="relative">
+            <Input
+              placeholder="Search tags..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
             {/* Tag List */}
             <div className="max-h-48 overflow-y-auto space-y-2">
@@ -114,9 +122,8 @@ export function Filter({ allTags, selectedTags, onTagsChange }: FilterProps) {
                 </div>
               </div>
             )}
-          </div>
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
 
       {/* Active Filter Display */}
       {selectedTags.length > 0 && (

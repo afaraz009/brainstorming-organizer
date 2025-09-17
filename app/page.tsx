@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { FileInput } from "@/components/file-input"
 import { KanbanBoard } from "@/components/kanban-board"
 import { Filter } from "@/components/filter"
 import { FeatureForm } from "@/components/feature-form"
 import { FeatureDetailView } from "@/components/feature-detail-view"
 import { Button } from "@/components/ui/button"
-import { Plus, Download } from "lucide-react"
+import { Plus, Download, Upload, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ThemeToggle } from "@/components/theme-toggle"
 
@@ -35,17 +35,156 @@ export default function BrainstormingOrganizer() {
   const [viewingFeature, setViewingFeature] = useState<Feature | null>(null)
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false)
   const [columnOrder, setColumnOrder] = useState<string[]>([])
+  const [showFileInput, setShowFileInput] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const { toast } = useToast()
+
+  // Debounced save function
+  const saveToStorage = useCallback((data: ProjectData) => {
+    try {
+      const dataToSave = {
+        ...data,
+        lastModified: new Date().toISOString(),
+        version: '1.0'
+      }
+      localStorage.setItem('brainstorming-data', JSON.stringify(dataToSave))
+      setHasUnsavedChanges(false)
+      console.log('Data saved to localStorage:', data.features.length, 'features')
+    } catch (error) {
+      console.warn('Could not save data to localStorage:', error)
+      toast({
+        title: "Save Failed",
+        description: "Changes could not be saved to local storage",
+        variant: "destructive",
+      })
+    }
+  }, [toast])
+
+  // Manual save function
+  const handleManualSave = () => {
+    if (projectData) {
+      saveToStorage(projectData)
+      toast({
+        title: "Changes Saved",
+        description: "All changes have been saved to local storage",
+      })
+    }
+  }
+
+  // Auto-save to localStorage whenever projectData changes (debounced)
+  useEffect(() => {
+    if (projectData) {
+      setHasUnsavedChanges(true)
+      
+      const timeoutId = setTimeout(() => {
+        saveToStorage(projectData)
+      }, 1000) // Save after 1 second of no changes
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [projectData, saveToStorage])
+
+  // Load from localStorage on startup
+  useEffect(() => {
+    const loadFromStorage = () => {
+      try {
+        const savedData = localStorage.getItem('brainstorming-data')
+        if (savedData) {
+          const parsedData = JSON.parse(savedData) as ProjectData & { lastModified?: string; version?: string }
+          
+          // Validate the saved data structure
+          if (parsedData.features && Array.isArray(parsedData.features) && parsedData.projectVision) {
+            const featuresWithIds = parsedData.features.map((f: Feature, index: number) => ({
+              ...f,
+              id: f.id || `feature-${index}`
+            }))
+            
+            setProjectData({ 
+              projectVision: parsedData.projectVision, 
+              features: featuresWithIds 
+            })
+            
+            const phases = Array.from(new Set(featuresWithIds.map((f: Feature) => f.phase)))
+            setColumnOrder(phases)
+            setHasUnsavedChanges(false) // Data loaded from storage, no unsaved changes
+            
+            console.log('Data loaded from localStorage:', featuresWithIds.length, 'features')
+            
+            if (parsedData.lastModified) {
+              toast({
+                title: "Data Restored",
+                description: `Last saved: ${new Date(parsedData.lastModified).toLocaleString()}`,
+              })
+            }
+          } else {
+            console.warn('Invalid data structure in localStorage')
+            localStorage.removeItem('brainstorming-data')
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load data from localStorage:', error)
+        localStorage.removeItem('brainstorming-data')
+      }
+    }
+
+    // Load data on mount
+    loadFromStorage()
+  }, [])
+
+  // Keyboard shortcut for saving (Ctrl+S / Cmd+S)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault()
+        if (projectData && hasUnsavedChanges) {
+          handleManualSave()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [projectData, hasUnsavedChanges])
 
   const handleFileLoad = (data: ProjectData) => {
     const featuresWithIds = data.features.map((f, index) => ({
       ...f,
       id: f.id || `feature-${index}`
     }))
-    setProjectData({ ...data, features: featuresWithIds })
+    
+    const newProjectData = { ...data, features: featuresWithIds }
+    setProjectData(newProjectData)
+    
     // Initialize column order based on the phases in the data
     const phases = Array.from(new Set(featuresWithIds.map((f) => f.phase)))
     setColumnOrder(phases)
+    
+    // Reset all states when loading new file
+    setSelectedTags([])
+    setIsFormOpen(false)
+    setEditingFeature(null)
+    setViewingFeature(null)
+    setIsDetailViewOpen(false)
+    setShowFileInput(false)
+    setHasUnsavedChanges(false) // New file loaded, no unsaved changes yet
+    
+    // Save the new file data to localStorage immediately
+    try {
+      const dataToSave = {
+        ...newProjectData,
+        lastModified: new Date().toISOString(),
+        version: '1.0'
+      }
+      localStorage.setItem('brainstorming-data', JSON.stringify(dataToSave))
+      console.log('New file data saved to localStorage')
+    } catch (error) {
+      console.warn('Could not save new file data to localStorage:', error)
+    }
+    
+    toast({
+      title: "File Loaded Successfully",
+      description: `Loaded ${featuresWithIds.length} features from new file`,
+    })
   }
 
   const handleAddFeature = (feature: Omit<Feature, "id">) => {
@@ -201,18 +340,32 @@ export default function BrainstormingOrganizer() {
 
   const filteredFeatures =
     projectData?.features.filter(
-      (feature) => selectedTags.length === 0 || selectedTags.every((tag) => (feature.tags || []).includes(tag)),
+      (feature) => selectedTags.length === 0 || selectedTags.some((tag) => (feature.tags || []).includes(tag)),
     ) || []
 
-  if (!projectData) {
+  if (!projectData || showFileInput) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-4">Brainstorming Organizer</h1>
+            <h1 className="text-4xl font-bold text-foreground mb-4">
+              {showFileInput ? "Load New JSON File" : "Brainstorming Organizer"}
+            </h1>
             <p className="text-muted-foreground text-lg">
-              Upload your JSON file to start organizing your ideas on a Kanban board
+              {showFileInput 
+                ? "Upload a new JSON file to replace the current project data" 
+                : "Upload your JSON file to start organizing your ideas on a Kanban board"
+              }
             </p>
+            {showFileInput && (
+              <Button 
+                onClick={() => setShowFileInput(false)} 
+                variant="outline" 
+                className="mt-4"
+              >
+                Cancel
+              </Button>
+            )}
           </div>
           <FileInput onFileLoad={handleFileLoad} />
         </div>
@@ -225,9 +378,34 @@ export default function BrainstormingOrganizer() {
       <div className={`max-w-7xl mx-auto p-6 transition-all duration-300 ${isDetailViewOpen ? 'mr-[480px]' : ''}`}>
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-foreground">Brainstorming Organizer</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold text-foreground">Brainstorming Organizer</h1>
+              {hasUnsavedChanges && (
+                <span className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+                  • Unsaved changes
+                </span>
+              )}
+            </div>
             <div className="flex gap-2">
               <ThemeToggle />
+              <Button 
+                onClick={() => setShowFileInput(true)} 
+                variant="outline" 
+                className="flex items-center gap-2 bg-transparent"
+              >
+                <Upload className="w-4 h-4" />
+                Load New File
+              </Button>
+              {hasUnsavedChanges && (
+                <Button 
+                  onClick={handleManualSave} 
+                  variant="default" 
+                  className="flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Changes
+                </Button>
+              )}
               <Button onClick={handleExport} variant="outline" className="flex items-center gap-2 bg-transparent">
                 <Download className="w-4 h-4" />
                 Export JSON
@@ -291,6 +469,16 @@ export default function BrainstormingOrganizer() {
           allFeatures={filteredFeatures}
           onNavigate={(feature) => {
             setViewingFeature(feature)
+          }}
+          onFeatureUpdate={(updatedFeature) => {
+            if (projectData) {
+              setProjectData({
+                ...projectData,
+                features: projectData.features.map((f) =>
+                  f.id === updatedFeature.id ? updatedFeature : f
+                )
+              })
+            }
           }}
         />
       </div>

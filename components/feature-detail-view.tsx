@@ -9,6 +9,105 @@ import { useEffect, useState, useRef } from "react"
 import type { Feature } from "@/app/page"
 import { getTagColor } from "@/lib/tag-colors"
 
+interface EditableFlowItemProps {
+  flow: string
+  index: number
+  onUpdate: (newFlow: string) => void
+  onRemove: () => void
+}
+
+function EditableFlowItem({ flow, index, onUpdate, onRemove }: EditableFlowItemProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState(flow)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isEditing])
+
+  const handleSave = () => {
+    if (editValue.trim() && editValue.trim() !== flow) {
+      onUpdate(editValue.trim())
+    }
+    setIsEditing(false)
+    setEditValue(flow)
+  }
+
+  const handleCancel = () => {
+    setEditValue(flow)
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      handleSave()
+    } else if (e.key === "Escape") {
+      e.preventDefault()
+      handleCancel()
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <li className="flex items-start">
+        <span className="mr-2">{index + 1}.</span>
+        <div className="flex items-center gap-2 flex-1">
+          <Input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleSave}
+            className="flex-1 h-7 text-sm"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleSave}
+            className="h-7 w-7 p-0"
+          >
+            ✓
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleCancel}
+            className="h-7 w-7 p-0"
+          >
+            ✕
+          </Button>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <li className="flex items-start group">
+      <span className="mr-2">{index + 1}.</span>
+      <span
+        className="flex-1 cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded text-sm"
+        onClick={() => setIsEditing(true)}
+      >
+        {flow}
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onRemove}
+        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+      >
+        <X className="h-3 w-3" />
+      </Button>
+    </li>
+  )
+}
+
 interface FeatureDetailViewProps {
   feature: Feature | null
   isOpen: boolean
@@ -17,23 +116,47 @@ interface FeatureDetailViewProps {
   onSave?: (feature: Feature) => void
   allFeatures?: Feature[]
   onNavigate?: (feature: Feature) => void
+  onFeatureUpdate?: (feature: Feature) => void
 }
 
-export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, allFeatures = [], onNavigate }: FeatureDetailViewProps) {
+export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, allFeatures = [], onNavigate, onFeatureUpdate }: FeatureDetailViewProps) {
   const [width, setWidth] = useState(480)
   const [isResizing, setIsResizing] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editedFeature, setEditedFeature] = useState<Feature | null>(null)
+  const [localFeature, setLocalFeature] = useState<Feature | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
 
-  // Initialize edited feature when feature changes
+  // Update local feature when feature prop changes
   useEffect(() => {
+    setLocalFeature(feature)
     if (feature) {
       setEditedFeature({ ...feature })
       setIsEditing(false)
     }
   }, [feature])
 
+  const handleUpdateUserFlow = (index: number, newFlow: string) => {
+    if (!localFeature || !onFeatureUpdate) return
+
+    const updatedFeature = {
+      ...localFeature,
+      "User Flow": localFeature["User Flow"]?.map((flow, i) => i === index ? newFlow : flow) || []
+    }
+    setLocalFeature(updatedFeature)
+    onFeatureUpdate(updatedFeature)
+  }
+
+  const handleRemoveUserFlow = (index: number) => {
+    if (!localFeature || !onFeatureUpdate) return
+
+    const updatedFeature = {
+      ...localFeature,
+      "User Flow": localFeature["User Flow"]?.filter((_, i) => i !== index) || []
+    }
+    setLocalFeature(updatedFeature)
+    onFeatureUpdate(updatedFeature)
+  }
   // Navigation logic
   const currentIndex = feature ? allFeatures.findIndex(f => f.id === feature.id) : -1
   const canGoBack = feature ? currentIndex > 0 : false
@@ -135,15 +258,21 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
     if (!feature || !isOpen) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't interfere if user is typing in an input field
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
       if (e.key === 'ArrowLeft' && canGoBack) {
         e.preventDefault()
         handlePrevious()
       } else if (e.key === 'ArrowRight' && canGoForward) {
         e.preventDefault()
         handleNext()
-      } else if (e.key === 'e' || e.key === 'E') {
+      } else if (e.key === 'Escape') {
         e.preventDefault()
-        handleEdit()
+        onClose()
       }
     }
 
@@ -151,9 +280,7 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, canGoBack, canGoForward, handlePrevious, handleNext, onEdit, onClose, feature])
 
-  if (!feature) return null
-
-  if (!isOpen) return null
+  if (!localFeature) return null
 
   if (!isOpen) return null
 
@@ -170,11 +297,20 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
               <Input
                 value={editedFeature.title}
                 onChange={(e) => setEditedFeature({ ...editedFeature, title: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSave()
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    handleCancel()
+                  }
+                }}
                 className="text-lg font-semibold border-none p-0 h-auto bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                 placeholder="Feature title"
               />
             ) : (
-              <h2 className="text-lg font-semibold pr-8 break-words">{feature.title}</h2>
+              <h2 className="text-lg font-semibold pr-8 break-words">{localFeature?.title}</h2>
             )}
             <div className="flex items-center gap-2">
               {isEditing ? (
@@ -245,7 +381,7 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
               {/* Phase Badge */}
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-sm">
-                  {feature.phase.replace("Phase ", "")}
+                  {localFeature.phase.replace("Phase ", "")}
                 </Badge>
               </div>
             </div>
@@ -254,50 +390,68 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
           {/* Keyboard shortcuts hint */}
           {allFeatures.length > 1 && (
             <div className="text-xs text-muted-foreground text-center py-2 border-t border-border/30 mb-4">
-              ←→ Navigate • E: Edit • Esc: Close
+              ←→ Navigate • Esc: Close • Enter: Save (when editing)
             </div>
           )}
 
         <div className="space-y-6 mt-4">
 
           {/* Description */}
-          {(isEditing || feature.description) && (
+          {(isEditing || localFeature?.description) && (
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
               {isEditing && editedFeature ? (
                 <Textarea
                   value={editedFeature.description || ""}
                   onChange={(e) => setEditedFeature({ ...editedFeature, description: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                      e.preventDefault()
+                      handleSave()
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault()
+                      handleCancel()
+                    }
+                  }}
                   className="text-sm leading-relaxed min-h-[80px]"
                   placeholder="Feature description"
                 />
               ) : (
-                <p className="text-sm leading-relaxed">{feature.description}</p>
+                <p className="text-sm leading-relaxed">{localFeature?.description}</p>
               )}
             </div>
           )}
 
           {/* User Problem */}
-          {(isEditing || feature["User Problem"]) && (
+          {(isEditing || localFeature?.["User Problem"]) && (
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">User Problem</h3>
               {isEditing && editedFeature ? (
                 <Textarea
                   value={editedFeature["User Problem"] || ""}
                   onChange={(e) => setEditedFeature({ ...editedFeature, "User Problem": e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                      e.preventDefault()
+                      handleSave()
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault()
+                      handleCancel()
+                    }
+                  }}
                   className="text-sm leading-relaxed min-h-[80px] bg-muted/50"
                   placeholder="What user problem does this feature solve?"
                 />
               ) : (
                 <div className="text-sm leading-relaxed bg-muted/50 p-3 rounded-md">
-                  {feature["User Problem"]}
+                  {localFeature?.["User Problem"]}
                 </div>
               )}
             </div>
           )}
 
           {/* User Flow */}
-          {(isEditing || (feature["User Flow"] && feature["User Flow"].length > 0)) && (
+          {(isEditing || (localFeature && localFeature["User Flow"] && localFeature["User Flow"].length > 0)) && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium text-muted-foreground">User Flow</h3>
@@ -325,6 +479,15 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
                           newFlow[index] = e.target.value
                           setEditedFeature({ ...editedFeature, "User Flow": newFlow })
                         }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleSave()
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault()
+                            handleCancel()
+                          }
+                        }}
                         className="text-sm flex-1"
                         placeholder="User flow step"
                       />
@@ -341,11 +504,14 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
                 </div>
               ) : (
                 <ol className="text-sm leading-relaxed space-y-1">
-                  {feature["User Flow"].map((flow, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="mr-2">{index + 1}.</span>
-                      <span>{flow}</span>
-                    </li>
+                  {localFeature?.["User Flow"]?.map((flow, index) => (
+                    <EditableFlowItem
+                      key={index}
+                      flow={flow}
+                      index={index}
+                      onUpdate={(newFlow) => handleUpdateUserFlow(index, newFlow)}
+                      onRemove={() => handleRemoveUserFlow(index)}
+                    />
                   ))}
                 </ol>
               )}
@@ -353,7 +519,7 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
           )}
 
           {/* Key Components */}
-          {(isEditing || (feature.KeyComponents && feature.KeyComponents.length > 0)) && (
+          {(isEditing || (localFeature?.KeyComponents && localFeature.KeyComponents.length > 0)) && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium text-muted-foreground">Key Components</h3>
@@ -381,6 +547,15 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
                           newComponents[index] = e.target.value
                           setEditedFeature({ ...editedFeature, KeyComponents: newComponents })
                         }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleSave()
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault()
+                            handleCancel()
+                          }
+                        }}
                         className="text-sm flex-1"
                         placeholder="Key component"
                       />
@@ -397,7 +572,7 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
                 </div>
               ) : (
                 <ul className="text-sm leading-relaxed space-y-1">
-                  {feature.KeyComponents.map((component, index) => (
+                  {localFeature?.KeyComponents?.map((component, index) => (
                     <li key={index} className="flex items-start">
                       <span className="mr-2">•</span>
                       <span>{component}</span>
@@ -409,11 +584,11 @@ export function FeatureDetailView({ feature, isOpen, onClose, onEdit, onSave, al
           )}
 
           {/* Tags */}
-          {feature.tags && feature.tags.length > 0 && (
+          {localFeature?.tags && localFeature.tags.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Tags</h3>
               <div className="flex flex-wrap gap-2">
-                {feature.tags.map((tag) => (
+                {localFeature.tags.map((tag) => (
                   <span
                     key={tag}
                     className={`text-sm font-medium px-3 py-1.5 rounded-full border shadow-sm ${getTagColor(tag)}`}

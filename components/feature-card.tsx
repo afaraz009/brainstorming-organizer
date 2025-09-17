@@ -4,9 +4,7 @@ import { useState } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Edit, GripVertical } from "lucide-react"
 import type { Feature } from "@/app/page"
 import { getTagColor } from "@/lib/tag-colors"
 
@@ -83,24 +81,9 @@ export function FeatureCard({ feature, onEdit, onView, isDragging = false }: Fea
       {...listeners}
     >
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <CardTitle className="text-lg font-semibold leading-tight break-words flex-1">
-            {feature.title}
-          </CardTitle>
-          <div className="flex items-center gap-1 ml-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
-            >
-              <Edit className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
+        <CardTitle className="text-lg font-semibold leading-tight break-words">
+          {feature.title}
+        </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
         <CardDescription className="text-xs text-muted-foreground mb-2 text-pretty font-normal">

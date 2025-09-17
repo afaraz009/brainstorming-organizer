@@ -266,6 +266,12 @@ export function FeatureForm({ feature, existingPhases, allTags, onSave, onCancel
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSubmit(e as any)
+                  }
+                }}
                 placeholder="Enter feature title"
                 className={errors.title ? "border-destructive" : ""}
               />
@@ -308,6 +314,12 @@ export function FeatureForm({ feature, existingPhases, allTags, onSave, onCancel
                       id="newPhase"
                       value={newPhase}
                       onChange={(e) => setNewPhase(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSubmit(e as any)
+                        }
+                      }}
                       placeholder="Enter new phase name"
                       className={errors.phase ? "border-destructive" : ""}
                     />
@@ -321,6 +333,12 @@ export function FeatureForm({ feature, existingPhases, allTags, onSave, onCancel
                     id="description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault()
+                        handleSubmit(e as any)
+                      }
+                    }}
                     placeholder="Describe the feature"
                     rows={3}
                     className={errors.description ? "border-destructive" : ""}
@@ -335,6 +353,12 @@ export function FeatureForm({ feature, existingPhases, allTags, onSave, onCancel
                     id="userProblem"
                     value={userProblem}
                     onChange={(e) => setUserProblem(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault()
+                        handleSubmit(e as any)
+                      }
+                    }}
                     placeholder="What user problem does this solve?"
                     rows={2}
                   />
